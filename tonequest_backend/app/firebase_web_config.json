@@ -1,0 +1,14 @@
+{
+  "_comment": "This file contains Firebase web app configuration. The API key is public and safe to expose in client-side code.",
+  "apiKey": "AIzaSyBFfX-PyAg2r9l83fe_T1XpUlyMckqj818",
+  "authDomain": "tonequest-79260.firebaseapp.com",
+  "projectId": "tonequest-79260",
+  "_instructions": [
+    "1. Go to Firebase Console: https://console.firebase.google.com/",
+    "2. Select your project → Project Settings → General",
+    "3. Scroll to 'Your apps' section and find your Web app (or create one)",
+    "4. Copy the apiKey, authDomain, and projectId from the config object",
+    "5. Replace the values above",
+    "Note: If you don't fill this file, the system will try to auto-detect projectId and authDomain from ServiceAccountKey.json, but you'll still need to provide the apiKey manually."
+  ]
+}

@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firebase Token Generator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .section {
+            margin-bottom: 30px;
+        }
+        
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        
+        input[type="text"],
+        input[type="email"],
+        input[type="password"],
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        input:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .token-display {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 2px solid #e0e0e0;
+        }
+        
+        .token-display.hidden {
+            display: none;
+        }
+        
+        .token-label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        
+        .token-value {
+            font-family: monospace;
+            font-size: 12px;
+            color: #333;
+            word-break: break-all;
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .copy-btn {
+            margin-top: 10px;
+            background: #28a745;
+            font-size: 14px;
+            padding: 8px 16px;
+        }
+        
+        .copy-btn:hover {
+            background: #218838;
+        }
+        
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 15px;
+            border: 1px solid #fcc;
+            font-size: 14px;
+        }
+        
+        .success {
+            background: #efe;
+            color: #3c3;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 15px;
+            border: 1px solid #cfc;
+            font-size: 14px;
+        }
+        
+        .info {
+            background: #e7f3ff;
+            color: #0066cc;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔑 Firebase Token Generator</h1>
+        <p class="subtitle">Get your Firebase ID token to test protected endpoints</p>
+        
+        <div class="info">
+            <strong>📝 Instructions:</strong><br>
+            1. Enter your email and password<br>
+            2. Click "Get Token" to sign in and retrieve your ID token<br>
+            3. Copy the token and use it in Swagger UI or your API client
+        </div>
+        
+        <div class="section">
+            <div class="section-title">User Credentials</div>
+            <div class="form-group">
+                <label for="email">Email:</label>
+                <input type="email" id="email" placeholder="user@example.com" />
+            </div>
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" placeholder="Enter your password" />
+            </div>
+            <button id="getTokenBtn" onclick="getToken()">Get Token</button>
+        </div>
+        
+        <div id="errorMsg" class="error hidden"></div>
+        <div id="successMsg" class="success hidden"></div>
+        
+        <div id="tokenDisplay" class="token-display hidden">
+            <div class="token-label">Your Firebase ID Token:</div>
+            <div class="token-value" id="tokenValue"></div>
+            <button class="copy-btn" onclick="copyToken()">📋 Copy Token</button>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    
+    <script>
+        let currentToken = null;
+        let auth = null;
+        
+        // Firebase config - update these values from firebase_web_config.json if needed
+        const firebaseConfig = {
+            apiKey: "AIzaSyBFfX-PyAg2r9l83fe_T1XpUlyMckqj818",
+            authDomain: "tonequest-79260.firebaseapp.com",
+            projectId: "tonequest-79260"
+        };
+        
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMsg');
+            errorDiv.textContent = message;
+            errorDiv.classList.remove('hidden');
+            document.getElementById('successMsg').classList.add('hidden');
+        }
+        
+        function showSuccess(message) {
+            const successDiv = document.getElementById('successMsg');
+            successDiv.textContent = message;
+            successDiv.classList.remove('hidden');
+            document.getElementById('errorMsg').classList.add('hidden');
+        }
+        
+        function hideMessages() {
+            document.getElementById('errorMsg').classList.add('hidden');
+            document.getElementById('successMsg').classList.add('hidden');
+        }
+        
+        async function getToken() {
+            hideMessages();
+            
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            
+            if (!email || !password) {
+                showError('Please enter your email and password');
+                return;
+            }
+            
+            try {
+                // Initialize Firebase if not already initialized
+                if (!firebase.apps.length) {
+                    firebase.initializeApp(firebaseConfig);
+                }
+                
+                auth = firebase.auth();
+                
+                // Sign in with email and password
+                const userCredential = await auth.signInWithEmailAndPassword(email, password);
+                const user = userCredential.user;
+                
+                // Get the ID token
+                const token = await user.getIdToken();
+                currentToken = token;
+                
+                // Display the token
+                document.getElementById('tokenValue').textContent = token;
+                document.getElementById('tokenDisplay').classList.remove('hidden');
+                showSuccess('Successfully signed in! Token retrieved.');
+                
+            } catch (error) {
+                console.error('Error:', error);
+                let errorMessage = 'Failed to get token: ';
+                
+                switch (error.code) {
+                    case 'auth/user-not-found':
+                        errorMessage += 'User not found. Please check your email.';
+                        break;
+                    case 'auth/wrong-password':
+                        errorMessage += 'Incorrect password.';
+                        break;
+                    case 'auth/invalid-email':
+                        errorMessage += 'Invalid email address.';
+                        break;
+                    case 'auth/user-disabled':
+                        errorMessage += 'This user account has been disabled.';
+                        break;
+                    case 'auth/network-request-failed':
+                        errorMessage += 'Network error. Please check your internet connection.';
+                        break;
+                    default:
+                        errorMessage += error.message;
+                }
+                
+                showError(errorMessage);
+            }
+        }
+        
+        function copyToken() {
+            if (!currentToken) {
+                showError('No token available to copy');
+                return;
+            }
+            
+            navigator.clipboard.writeText(currentToken).then(() => {
+                showSuccess('Token copied to clipboard!');
+                setTimeout(() => {
+                    hideMessages();
+                }, 2000);
+            }).catch(err => {
+                showError('Failed to copy token: ' + err.message);
+            });
+        }
+    </script>
+</body>
+</html>
