@@ -7,6 +7,20 @@ class UserBase(BaseModel):
     email: str
     displayName: Optional[str] = None
 
+class UserSignup(BaseModel):
+    email: str
+    password: str
+    displayName: Optional[str] = None
+
+class UserLogin(BaseModel):
+    email: str
+    password: str
+
+class AuthResponse(BaseModel):
+    user: 'User'
+    token: str
+    message: str
+
 class User(UserBase):
     uid: str
     totalSubmissions: int = 0

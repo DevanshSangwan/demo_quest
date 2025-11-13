@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ToneQuest Auth Test</title>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
+</head>
+<body>
+    <h1>ToneQuest Authentication Test</h1>
+    
+    <div id="auth-section">
+        <h2>Sign Up / Log In</h2>
+        <input type="email" id="email" placeholder="Email" />
+        <input type="password" id="password" placeholder="Password" />
+        <input type="text" id="displayName" placeholder="Display Name (optional)" />
+        <br><br>
+        <button onclick="signUp()">Sign Up</button>
+        <button onclick="logIn()">Log In</button>
+        <button onclick="logOut()">Log Out</button>
+    </div>
+
+    <div id="user-info" style="display:none;">
+        <h2>User Info</h2>
+        <p id="user-details"></p>
+        <button onclick="testBackendSignup()">Test Backend Signup</button>
+        <button onclick="testBackendLogin()">Test Backend Login</button>
+        <button onclick="testGetProfile()">Test Get Profile</button>
+    </div>
+
+    <div id="results">
+        <h2>Results</h2>
+        <pre id="output"></pre>
+    </div>
+
+    <script>
+        // Initialize Firebase (you'll need to replace with your config)
+        const firebaseConfig = {
+            // Add your Firebase config here
+            apiKey: "your-api-key",
+            authDomain: "your-project.firebaseapp.com",
+            projectId: "your-project-id"
+        };
+        
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+
+        let currentToken = null;
+
+        // Monitor auth state
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                document.getElementById('auth-section').style.display = 'none';
+                document.getElementById('user-info').style.display = 'block';
+                document.getElementById('user-details').textContent = 
+                    `Logged in as: ${user.email} (${user.uid})`;
+                
+                // Get ID token
+                user.getIdToken().then((token) => {
+                    currentToken = token;
+                    log('Firebase token obtained');
+                });
+            } else {
+                document.getElementById('auth-section').style.display = 'block';
+                document.getElementById('user-info').style.display = 'none';
+                currentToken = null;
+            }
+        });
+
+        function signUp() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            auth.createUserWithEmailAndPassword(email, password)
+                .then((userCredential) => {
+                    log('Firebase signup successful: ' + userCredential.user.email);
+                })
+                .catch((error) => {
+                    log('Firebase signup error: ' + error.message);
+                });
+        }
+
+        function logIn() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            auth.signInWithEmailAndPassword(email, password)
+                .then((userCredential) => {
+                    log('Firebase login successful: ' + userCredential.user.email);
+                })
+                .catch((error) => {
+                    log('Firebase login error: ' + error.message);
+                });
+        }
+
+        function logOut() {
+            auth.signOut().then(() => {
+                log('Logged out successfully');
+            });
+        }
+
+        async function testBackendSignup() {
+            if (!currentToken) {
+                log('No token available. Please log in first.');
+                return;
+            }
+
+            const displayName = document.getElementById('displayName').value;
+            
+            try {
+                const response = await fetch('/api/v1/auth/signup', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${currentToken}`
+                    },
+                    body: JSON.stringify({
+                        email: auth.currentUser.email,
+                        displayName: displayName
+                    })
+                });
+                
+                const data = await response.json();
+                log('Backend signup response: ' + JSON.stringify(data, null, 2));
+            } catch (error) {
+                log('Backend signup error: ' + error.message);
+            }
+        }
+
+        async function testBackendLogin() {
+            if (!currentToken) {
+                log('No token available. Please log in first.');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/v1/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${currentToken}`
+                    }
+                });
+                
+                const data = await response.json();
+                log('Backend login response: ' + JSON.stringify(data, null, 2));
+            } catch (error) {
+                log('Backend login error: ' + error.message);
+            }
+        }
+
+        async function testGetProfile() {
+            if (!currentToken) {
+                log('No token available. Please log in first.');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/v1/auth/me', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${currentToken}`
+                    }
+                });
+                
+                const data = await response.json();
+                log('Get profile response: ' + JSON.stringify(data, null, 2));
+            } catch (error) {
+                log('Get profile error: ' + error.message);
+            }
+        }
+
+        function log(message) {
+            const output = document.getElementById('output');
+            output.textContent += new Date().toLocaleTimeString() + ': ' + message + '\n';
+            output.scrollTop = output.scrollHeight;
+        }
+    </script>
+</body>
+</html>

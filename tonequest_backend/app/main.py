@@ -1,6 +1,8 @@
 from fastapi import FastAPI
-from app.routers import evaluation, leaderboard
+from fastapi.responses import FileResponse
+from app.routers import evaluation, leaderboard, auth
 from fastapi.middleware.cors import CORSMiddleware # Will be configured later
+import os
 
 app = FastAPI(
     title="ToneQuest API",
@@ -17,6 +19,7 @@ app = FastAPI(
 # )
 
 # Include all the application routers
+app.include_router(auth.router, prefix="/api/v1")
 app.include_router(evaluation.router, prefix="/api/v1")
 app.include_router(leaderboard.router, prefix="/api/v1")
 
@@ -26,3 +29,10 @@ def get_health():
     Simple health check endpoint.
     """
     return {"status": "ok"}
+
+@app.get("/auth-test")
+def get_auth_test():
+    """
+    Serve the authentication test page.
+    """
+    return FileResponse(os.path.join(os.path.dirname(__file__), "auth_test.html"))
