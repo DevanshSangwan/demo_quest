@@ -1,6 +1,5 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import { useReactTable, getCoreRowModel, flexRender } from "@tanstack/react-table";
-import { useGetLeaderboard } from "@/hooks/queries/useLeaderboardQueries";
 import type { LeaderboardEntry } from "@/api/generated/types.gen";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -12,10 +11,18 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+type LeaderboardTableProps = {
+  entries: LeaderboardEntry[];
+  isLoading?: boolean;
+  isError?: boolean;
+  emptyMessage?: string;
+};
+
 const columns: ColumnDef<LeaderboardEntry>[] = [
   {
     accessorKey: "rank",
     header: "Rank",
+    cell: ({ row }) => row.original.rank,
   },
   {
     accessorKey: "user_id",
@@ -31,11 +38,14 @@ const columns: ColumnDef<LeaderboardEntry>[] = [
   },
 ];
 
-export const LeaderboardTable = () => {
-  const { data, isLoading, isError } = useGetLeaderboard();
-
+export const LeaderboardTable = ({
+  entries,
+  isLoading,
+  isError,
+  emptyMessage = "No results.",
+}: LeaderboardTableProps) => {
   const table = useReactTable({
-    data: data || [],
+    data: entries,
     columns,
     getCoreRowModel: getCoreRowModel(),
   });
@@ -51,7 +61,9 @@ export const LeaderboardTable = () => {
   }
 
   if (isError) {
-    return <div>Error loading leaderboard</div>;
+    return <div className="rounded-md border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
+      Unable to load leaderboard data. Please try again later.
+    </div>;
   }
 
   return (
@@ -87,7 +99,7 @@ export const LeaderboardTable = () => {
           ) : (
             <TableRow>
               <TableCell colSpan={columns.length} className="h-24 text-center">
-                No results.
+                {emptyMessage}
               </TableCell>
             </TableRow>
           )}

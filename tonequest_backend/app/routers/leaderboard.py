@@ -1,4 +1,4 @@
-from typing import List
+from typing import Iterable, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from google.cloud import firestore
@@ -11,7 +11,25 @@ from app.routers.auth import get_current_user
 router = APIRouter(tags=["Leaderboard"])
 
 
+def _build_leaderboard_entries(
+    documents: Iterable[firestore.DocumentSnapshot],
+    start_rank: int = 1,
+) -> List[schemas.LeaderboardEntry]:
+    entries: List[schemas.LeaderboardEntry] = []
+    for offset, document in enumerate(documents):
+        payload = document.to_dict() or {}
+        entries.append(
+            schemas.LeaderboardEntry(
+                rank=start_rank + offset,
+                user_id=payload.get("user_id", document.id),
+                score=float(payload.get("average_score", payload.get("best_score", 0.0))),
+            )
+        )
+    return entries
+
+
 @router.get("/leaderboard", response_model=List[schemas.LeaderboardEntry])
+@router.get("/leaderboard/global", response_model=List[schemas.LeaderboardEntry])
 def read_leaderboard(
     limit: int = Query(10, ge=1, le=100),
     db: Client = Depends(get_db),
@@ -32,17 +50,59 @@ def read_leaderboard(
             detail=f"Failed to fetch leaderboard: {exc}",
         ) from exc
 
-    entries: List[schemas.LeaderboardEntry] = []
-    for index, document in enumerate(documents, start=1):
-        payload = document.to_dict() or {}
-        entries.append(
-            schemas.LeaderboardEntry(
-                rank=index,
-                user_id=payload.get("user_id", document.id),
-                score=float(payload.get("average_score", payload.get("best_score", 0.0))),
-            )
+    return _build_leaderboard_entries(documents)
+
+
+@router.get(
+    "/leaderboard/around_me",
+    response_model=schemas.RelativeLeaderboardResponse,
+)
+def read_relative_leaderboard(
+    current_user: dict = Depends(get_current_user),
+    db: Client = Depends(get_db),
+):
+    """
+    Return leaderboard entries surrounding the current user:
+    five ranks above and four ranks below, where possible.
+    """
+    user_id = current_user.get("uid")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Unable to determine current user",
         )
-    return entries
+
+    try:
+        query = (
+            db.collection("leaderboard")
+            .order_by("average_score", direction=firestore.Query.DESCENDING)
+        )
+        documents = list(query.stream())
+    except Exception as exc:  # pragma: no cover - network failures
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch leaderboard standings: {exc}",
+        ) from exc
+
+    entries = _build_leaderboard_entries(documents)
+    try:
+        current_index = next(
+            index for index, entry in enumerate(entries) if entry.user_id == user_id
+        )
+    except StopIteration:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found on leaderboard",
+        )
+
+    start_index = max(current_index - 5, 0)
+    end_index = min(current_index + 5, len(entries))
+    window = entries[start_index:end_index]
+
+    return schemas.RelativeLeaderboardResponse(
+        rank=current_index + 1,
+        entries=window,
+    )
 
 
 @router.post("/leaderboard/update")

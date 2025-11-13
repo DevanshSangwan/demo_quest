@@ -20,7 +20,7 @@ export const ProtectedRoute = () => {
   // 2. After loading, check if user and token are present
   if (!user || !token) {
     // Not authenticated, redirect to login
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/auth" replace />;
   }
 
   // 3. User is authenticated, render the child route

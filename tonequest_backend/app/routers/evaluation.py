@@ -1,5 +1,6 @@
 import json
 import os
+import random
 import threading
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
@@ -169,6 +170,59 @@ def _update_leaderboard(
         ) from exc
 
     return leaderboard_payload
+
+
+def _fallback_question() -> schemas.Question:
+    return schemas.Question(
+        id="sample-question",
+        prompt_text="Describe a professional accomplishment you are particularly proud of.",
+        category="General",
+        difficulty="Medium",
+        reference_answers=[
+            "I led a cross-functional team that delivered a critical project ahead of schedule by coordinating stakeholders and removing blockers early.",
+            "I launched a new onboarding program that reduced ramp-up time for new hires by 30%.",
+        ],
+    )
+
+
+@router.get("/questions/next", response_model=schemas.Question)
+def get_next_question(
+    _: dict = Depends(get_current_user),
+    db: Client = Depends(get_db),
+):
+    """
+    Return a random question for the authenticated user to answer.
+    Falls back to a static sample question if the collection is empty.
+    """
+    collection = db.collection(_QUESTIONS_COLLECTION)
+
+    try:
+        documents = list(collection.stream())
+    except Exception as exc:  # pragma: no cover - network failures
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to load questions: {exc}",
+        ) from exc
+
+    if not documents:
+        return _fallback_question()
+
+    document = random.choice(documents)
+    payload = document.to_dict() or {}
+    fallback_question = _fallback_question()
+
+    prompt_text = payload.get("prompt_text") or payload.get("prompt") or fallback_question.prompt_text
+    category = payload.get("category") or fallback_question.category
+    difficulty = payload.get("difficulty") or fallback_question.difficulty
+    reference_answers = payload.get("reference_answers") or payload.get("answers") or fallback_question.reference_answers
+
+    return schemas.Question(
+        id=str(payload.get("id") or document.id),
+        prompt_text=prompt_text,
+        category=category,
+        difficulty=difficulty,
+        reference_answers=list(reference_answers),
+    )
 
 
 @router.post("/evaluate_answer")

@@ -68,3 +68,8 @@ class LeaderboardEntry(BaseModel):
     rank: int
     user_id: str
     score: float
+
+
+class RelativeLeaderboardResponse(BaseModel):
+    rank: int
+    entries: List[LeaderboardEntry]

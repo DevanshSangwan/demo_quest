@@ -1,32 +1,38 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getLeaderboard, updateScore } from '@/api/services/leaderboardService';
-import type { ScoreUpdate } from '@/api/generated/types.gen'; // Import generated type
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  getGlobalLeaderboard,
+  getRelativeLeaderboard,
+  updateScore,
+} from '@/api/services/leaderboardService';
+import type { ScoreUpdate } from '@/api/generated/types.gen';
 
-// Centralize query keys
-export const LEADERBOARD_QUERY_KEY = ['leaderboard'];
+export const GLOBAL_LEADERBOARD_QUERY_KEY = ['leaderboard', 'global'];
+export const RELATIVE_LEADERBOARD_QUERY_KEY = ['leaderboard', 'relative'];
 
-/**
- * Custom hook to fetch the leaderboard.
- */
-export const useGetLeaderboard = () => {
+export const useGlobalLeaderboard = () => {
   return useQuery({
-    queryKey: LEADERBOARD_QUERY_KEY,
-    queryFn: getLeaderboard, // Pass the service function directly
+    queryKey: GLOBAL_LEADERBOARD_QUERY_KEY,
+    queryFn: getGlobalLeaderboard,
+    staleTime: 60_000,
   });
 };
 
-/**
- * Custom hook to update a user's score.
- */
+export const useRelativeLeaderboard = () => {
+  return useQuery({
+    queryKey: RELATIVE_LEADERBOARD_QUERY_KEY,
+    queryFn: getRelativeLeaderboard,
+    staleTime: 30_000,
+  });
+};
+
 export const useUpdateScore = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (scoreUpdate: ScoreUpdate) => updateScore(scoreUpdate),
-
-    // On success, invalidate the leaderboard query to refetch the data
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: LEADERBOARD_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: GLOBAL_LEADERBOARD_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: RELATIVE_LEADERBOARD_QUERY_KEY });
     },
   });
 };
