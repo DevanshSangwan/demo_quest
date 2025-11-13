@@ -13,15 +13,29 @@ router = APIRouter(tags=["Leaderboard"])
 
 def _build_leaderboard_entries(
     documents: Iterable[firestore.DocumentSnapshot],
+    db: Client,
     start_rank: int = 1,
 ) -> List[schemas.LeaderboardEntry]:
     entries: List[schemas.LeaderboardEntry] = []
     for offset, document in enumerate(documents):
         payload = document.to_dict() or {}
+        user_id = payload.get("user_id", document.id)
+        
+        # Fetch user's display name from users collection
+        display_name = user_id
+        try:
+            user_doc = db.collection("users").document(user_id).get()
+            if user_doc.exists:
+                user_data = user_doc.to_dict() or {}
+                display_name = user_data.get("displayName") or user_data.get("email") or user_id
+        except Exception:
+            pass  # Fallback to user_id if fetch fails
+        
         entries.append(
             schemas.LeaderboardEntry(
                 rank=start_rank + offset,
-                user_id=payload.get("user_id", document.id),
+                user_id=user_id,
+                display_name=display_name,
                 score=float(payload.get("average_score", payload.get("best_score", 0.0))),
             )
         )
@@ -50,7 +64,7 @@ def read_leaderboard(
             detail=f"Failed to fetch leaderboard: {exc}",
         ) from exc
 
-    return _build_leaderboard_entries(documents)
+    return _build_leaderboard_entries(documents, db)
 
 
 @router.get(
@@ -84,7 +98,7 @@ def read_relative_leaderboard(
             detail=f"Failed to fetch leaderboard standings: {exc}",
         ) from exc
 
-    entries = _build_leaderboard_entries(documents)
+    entries = _build_leaderboard_entries(documents, db)
     try:
         current_index = next(
             index for index, entry in enumerate(entries) if entry.user_id == user_id

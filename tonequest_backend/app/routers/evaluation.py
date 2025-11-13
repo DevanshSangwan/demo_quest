@@ -262,6 +262,10 @@ def evaluate_answer(
 
     leaderboard_data = _update_leaderboard(db, user_id, best_score)
 
+    # Update user's totalSubmissions count
+    user_ref = db.collection("users").document(user_id)
+    user_ref.update({"totalSubmissions": firestore.Increment(1)})
+
     return {
         "submission_id": submission_id,
         "similarity_score": best_score,

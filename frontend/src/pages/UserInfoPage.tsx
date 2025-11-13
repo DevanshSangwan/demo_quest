@@ -44,10 +44,6 @@ export const UserInfoPage = () => {
                   <dt className="font-medium text-foreground">Email address</dt>
                   <dd>{profile.email}</dd>
                 </div>
-                <div className="flex items-center justify-between">
-                  <dt className="font-medium text-foreground">User ID</dt>
-                  <dd className="font-mono text-xs">{profile.uid}</dd>
-                </div>
               </dl>
             </div>
             <div>

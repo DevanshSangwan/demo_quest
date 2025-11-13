@@ -67,6 +67,7 @@ class ScoreUpdate(BaseModel):
 class LeaderboardEntry(BaseModel):
     rank: int
     user_id: str
+    display_name: str
     score: float
 
 

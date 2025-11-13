@@ -25,11 +25,9 @@ const columns: ColumnDef<LeaderboardEntry>[] = [
     cell: ({ row }) => row.original.rank,
   },
   {
-    accessorKey: "user_id",
-    header: "User",
-    cell: ({ row }) => (
-      <span className="font-mono text-sm">{row.original.user_id}</span>
-    ),
+    accessorKey: "display_name",
+    header: "Display Name",
+    cell: ({ row }) => row.original.display_name,
   },
   {
     accessorKey: "score",

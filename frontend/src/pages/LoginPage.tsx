@@ -205,11 +205,7 @@ export const LoginPage = () => {
                           type="email"
                           placeholder="you@example.com"
                           className="bg-white/5 text-white placeholder:text-slate-400"
-                          value={field.value || ''}
-                          onChange={field.onChange}
-                          onBlur={field.onBlur}
-                          name={field.name}
-                          ref={field.ref}
+                          {...field}
                         />
                       </FormControl>
                       <FormMessage />
@@ -227,11 +223,8 @@ export const LoginPage = () => {
                           type="text"
                           placeholder="Your name"
                           className="bg-white/5 text-white placeholder:text-slate-400"
+                          {...field}
                           value={field.value || ''}
-                          onChange={field.onChange}
-                          onBlur={field.onBlur}
-                          name={field.name}
-                          ref={field.ref}
                         />
                       </FormControl>
                       <FormMessage />
