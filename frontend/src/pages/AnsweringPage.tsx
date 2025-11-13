@@ -10,6 +10,7 @@ export const AnsweringPage = () => {
   const [showFeedback, setShowFeedback] = useState(false);
   const [lastScore, setLastScore] = useState<number | null>(null);
   const [bestMatch, setBestMatch] = useState<string | null>(null);
+  const [hasSubmitted, setHasSubmitted] = useState(false);
 
   const questionQuery = useQuery({
     queryKey: ["evaluation", "question"],
@@ -22,6 +23,7 @@ export const AnsweringPage = () => {
       setLastScore(data.similarity_score);
       setBestMatch(data.best_match_answer);
       setShowFeedback(true);
+      setHasSubmitted(true);
     },
   });
 
@@ -40,6 +42,7 @@ export const AnsweringPage = () => {
     setShowFeedback(false);
     setLastScore(null);
     setBestMatch(null);
+    setHasSubmitted(false);
     questionQuery.refetch();
   };
 
@@ -69,11 +72,7 @@ export const AnsweringPage = () => {
         {question && (
           <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-              <span className="rounded-full bg-muted px-3 py-1 text-xs font-semibold uppercase tracking-wide">
-                {question.category}
-              </span>
-              <span>Difficulty: {question.difficulty}</span>
-              <span>Question ID: {question.id}</span>
+              <span>Question Number: {question.id}</span>
             </div>
             <h2 className="text-xl font-semibold">{question.prompt_text}</h2>
             <textarea
@@ -85,15 +84,37 @@ export const AnsweringPage = () => {
             <div className="flex flex-wrap items-center gap-4">
               <Button
                 onClick={handleSubmit}
-                disabled={submitMutation.isPending || !answerText.trim()}
+                disabled={hasSubmitted || submitMutation.isPending || !answerText.trim()}
+                className="disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {submitMutation.isPending ? "Submitting..." : "Submit Answer"}
               </Button>
-              <Button variant="outline" onClick={() => navigate("/")} type="button">
-                Exit to Home
-              </Button>
-              <Button variant="ghost" onClick={handleLoadAnotherQuestion} type="button">
+              <Button
+                variant="outline"
+                onClick={handleLoadAnotherQuestion}
+                disabled={!hasSubmitted}
+                className="disabled:cursor-not-allowed disabled:opacity-50"
+                type="button"
+              >
                 Try Another Question
+              </Button>
+              {hasSubmitted && (
+                <Button
+                  variant="ghost"
+                  onClick={() => setHasSubmitted(false)}
+                  type="button"
+                >
+                  Try Again
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                onClick={() => navigate("/")}
+                disabled={submitMutation.isPending}
+                className="disabled:cursor-not-allowed disabled:opacity-50"
+                type="button"
+              >
+                Exit to Home
               </Button>
             </div>
           </div>

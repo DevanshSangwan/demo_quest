@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { useAuthStore } from "@/store/authStore";
 
 const pages = [
   {
@@ -26,12 +27,46 @@ const pages = [
 ];
 
 export const HomePage = () => {
+  const { user } = useAuthStore();
+
   return (
     <div className="space-y-12">
+      {/* Hero Section */}
+      <section className="grid grid-cols-1 items-center gap-8 py-12 md:grid-cols-2 md:py-16">
+        {/* Left Column - Text & CTA */}
+        <div className="space-y-6 pr-8">
+          <h1 className="text-4xl font-bold tracking-tight text-foreground md:text-5xl lg:text-6xl">
+            Master Your Professional Tone.
+          </h1>
+          <p className="text-lg text-muted-foreground md:text-xl">
+            Get instant, AI-driven feedback on your writing. Improve your clarity and effectiveness
+            for the modern workplace.
+          </p>
+          <div>
+            <Button asChild size="lg" className="text-base">
+              {user ? (
+                <Link to="/answer">Start Learning</Link>
+              ) : (
+                <Link to="/auth">Start Your Evaluation</Link>
+              )}
+            </Button>
+          </div>
+        </div>
+
+        {/* Right Column - Image */}
+        <div className="flex items-center justify-center">
+          <img
+            src="/hero-quest.png"
+            alt="Person learning on tablet"
+            className="h-auto w-full max-w-lg rounded-lg object-contain"
+          />
+        </div>
+      </section>
+
       <section className="rounded-3xl bg-gradient-to-br from-primary/90 via-primary to-primary/80 p-10 text-white shadow-xl">
-        <h1 className="text-4xl font-bold tracking-tight md:text-5xl">
+        <h2 className="text-3xl font-bold tracking-tight md:text-4xl">
           Welcome back to ToneQuest
-        </h1>
+        </h2>
         <p className="mt-4 max-w-3xl text-lg text-white/90">
           Hone your professional writing by answering scenario-based prompts, learn from detailed
           feedback, and climb the leaderboard as you improve. Use the shortcuts below to jump
