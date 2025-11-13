@@ -43,7 +43,7 @@ export const HomePage = () => {
             for the modern workplace.
           </p>
           <div>
-            <Button asChild size="lg" className="text-base">
+            <Button asChild size="lg" className="bg-blue-500 text-base text-white hover:bg-blue-600">
               {user ? (
                 <Link to="/answer">Start Learning</Link>
               ) : (

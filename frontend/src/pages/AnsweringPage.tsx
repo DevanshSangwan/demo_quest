@@ -85,33 +85,31 @@ export const AnsweringPage = () => {
               <Button
                 onClick={handleSubmit}
                 disabled={hasSubmitted || submitMutation.isPending || !answerText.trim()}
-                className="disabled:cursor-not-allowed disabled:opacity-50"
+                className="bg-blue-500 text-white hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {submitMutation.isPending ? "Submitting..." : "Submit Answer"}
               </Button>
               <Button
-                variant="outline"
                 onClick={handleLoadAnotherQuestion}
                 disabled={!hasSubmitted}
-                className="disabled:cursor-not-allowed disabled:opacity-50"
+                className="bg-blue-500 text-white hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
                 type="button"
               >
                 Try Another Question
               </Button>
               {hasSubmitted && (
                 <Button
-                  variant="ghost"
                   onClick={() => setHasSubmitted(false)}
+                  className="bg-blue-500 text-white hover:bg-blue-600"
                   type="button"
                 >
                   Try Again
                 </Button>
               )}
               <Button
-                variant="outline"
                 onClick={() => navigate("/")}
                 disabled={submitMutation.isPending}
-                className="disabled:cursor-not-allowed disabled:opacity-50"
+                className="bg-blue-500 text-white hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
                 type="button"
               >
                 Exit to Home
