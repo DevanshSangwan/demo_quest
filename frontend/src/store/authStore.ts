@@ -1,10 +1,10 @@
 import { create } from 'zustand';
-import { User } from 'firebase/auth'; // We will import the real type later, but this is the intent
+import type { User } from 'firebase/auth';
 
 interface AuthStoreState {
-  user: User | null; // The Firebase User object
-  token: string | null; // The Firebase ID Token (JWT)
-  isLoading: boolean; // True on initial load, false after auth state is determined
+  user: User | null;
+  token: string | null;
+  isLoading: boolean;
   setUser: (user: User | null) => void;
   setToken: (token: string | null) => void;
   setLoading: (loading: boolean) => void;

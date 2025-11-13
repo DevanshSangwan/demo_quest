@@ -1,7 +1,7 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { useReactTable, getCoreRowModel, flexRender } from "@tanstack/react-table";
 import { useGetLeaderboard } from "@/hooks/queries/useLeaderboardQueries";
-import { LeaderboardEntry } from "@/api/generated/models";
+import { LeaderboardEntry } from "@/api/generated/types.gen";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,

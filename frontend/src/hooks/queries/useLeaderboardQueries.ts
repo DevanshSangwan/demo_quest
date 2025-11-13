@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getLeaderboard, createLeaderboardEntry } from '@/api/services/leaderboardService';
-import { NewLeaderboardEntry } from '@/api/generated/models'; // Import generated type
+import { getLeaderboard, updateScore } from '@/api/services/leaderboardService';
+import { ScoreUpdate } from '@/api/generated/types.gen'; // Import generated type
 
 // Centralize query keys
 export const LEADERBOARD_QUERY_KEY = ['leaderboard'];
@@ -16,13 +16,13 @@ export const useGetLeaderboard = () => {
 };
 
 /**
- * Custom hook to create a new leaderboard entry.
+ * Custom hook to update a user's score.
  */
-export const useCreateLeaderboardEntry = () => {
+export const useUpdateScore = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (newEntry: NewLeaderboardEntry) => createLeaderboardEntry(newEntry),
+    mutationFn: (scoreUpdate: ScoreUpdate) => updateScore(scoreUpdate),
 
     // On success, invalidate the leaderboard query to refetch the data
     onSuccess: () => {
