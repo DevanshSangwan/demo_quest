@@ -1,6 +1,4 @@
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
-import { signOut } from "firebase/auth";
-import { auth } from "@/firebaseConfig";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/store/authStore";
 
@@ -13,15 +11,11 @@ const navItems = [
 
 export const AppShell = () => {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
+  const { user, logout } = useAuthStore();
 
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      navigate("/auth", { replace: true });
-    } catch (error) {
-      console.error("Failed to log out:", error);
-    }
+  const handleLogout = () => {
+    logout();
+    navigate("/auth", { replace: true });
   };
 
   return (

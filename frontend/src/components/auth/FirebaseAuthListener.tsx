@@ -1,34 +1,38 @@
 import { useEffect } from 'react';
-import { onAuthStateChanged, type User } from 'firebase/auth';
-import { auth } from '@/firebaseConfig';
 import { useAuthStore } from '@/store/authStore';
+import { getCurrentUser } from '@/api/services/authService';
 
+/**
+ * Component that checks authentication state on app load
+ * by verifying the stored token with the backend API
+ */
 export const FirebaseAuthListener = () => {
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user: User | null) => {
-      if (user) {
-        // User is signed in
-        try {
-          const idToken = await user.getIdToken();
-          useAuthStore.getState().setUser(user);
-          useAuthStore.getState().setToken(idToken);
-        } catch (error) {
-          console.error('Error getting ID token:', error);
-          // Handle error: perhaps log out the user
-          useAuthStore.getState().setUser(null);
-          useAuthStore.getState().setToken(null);
-        }
-      } else {
-        // User is signed out
+    const checkAuthState = async () => {
+      const { token } = useAuthStore.getState();
+      
+      // If no token is stored, user is not authenticated
+      if (!token) {
+        useAuthStore.getState().setLoading(false);
+        return;
+      }
+
+      // Verify token by fetching current user profile
+      try {
+        const user = await getCurrentUser();
+        useAuthStore.getState().setUser(user);
+        // Token is still valid, keep it
+      } catch (error) {
+        // Token is invalid or expired, clear auth state
+        console.error('Token verification failed:', error);
         useAuthStore.getState().setUser(null);
         useAuthStore.getState().setToken(null);
+      } finally {
+        useAuthStore.getState().setLoading(false);
       }
-      // Set loading to false once the auth state is determined
-      useAuthStore.getState().setLoading(false);
-    });
+    };
 
-    // Cleanup subscription on unmount
-    return () => unsubscribe();
+    checkAuthState();
   }, []); // Empty dependency array ensures this runs only once on mount
 
   return null; // This component does not render anything
