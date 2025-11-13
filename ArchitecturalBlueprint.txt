@@ -1,0 +1,73 @@
+Executive Summary
+
+The primary objective is to construct a modern, performant, and maintainable React frontend application. This application will interface with an existing backend, implementing a sophisticated, decoupled authentication mechanism and ensuring ironclad type-safety through automated code generation.
+
+Architectural Pillars
+
+The entire application will rest on three non-negotiable architectural pillars:
+
+    A Modern, Performant Stack: The foundation will be a React (v18+) application built with Vite, ensuring a rapid development experience. All development will use TypeScript for strict type-checking. The entire UI will be styled using TailwindCSS, implemented utility-first.   
+
+An Ironclad Type-Safe Contract: All TypeScript interfaces, types, and data-transfer objects (DTOs) corresponding to backend API endpoints will not be written manually. They will be automatically generated from the backend's OpenAPI specification schema, which is in turn produced by its Pydantic models. This creates a single, unbreakable source of truth for the data contract, eliminating an entire class of frontend-backend bugs.  
+
+Decoupled, Secure Authentication: The application will employ a decoupled authentication model. The frontend is responsible for all user-facing authentication flows (e.g., login, signup, social login) using the Firebase Client SDK. Upon successful authentication, the frontend will retrieve a Firebase ID Token (JWT). This token is the only credential that will be sent to the custom FastAPI backend. The backend, in turn, is expected to protect its routes and verify this token using the Firebase Admin SDK. This offloads all password management and complex auth logic from the custom backend.  
+
+The State Management Doctrine (A Bifurcated Approach)
+
+A critical architectural decision is the explicit separation of state into two distinct categories, managed by two different libraries. This is a modern best practice that prevents common state management anti-patterns.  
+
+    Zustand (Global Client State): Zustand will be used exclusively for managing minimal, global, non-server state. Its primary and most critical role will be to store the user's authentication status (the user object and the Firebase ID token). It is lightweight, has a minimal API, and can be accessed outside of React components, which is crucial for the API layer.   
+
+TanStack Query (Server State): TanStack Query (formerly React Query) will be used for all interactions with the backend API. It is not a global state manager; it is a server-state and cache-management library. It will handle all data fetching, caching, mutation, background re-validation, and error handling for server-side data.  
+
+The Data and Auth Flow (The Complete Picture)
+
+This architecture establishes a clean, predictable flow for authentication and data requests:
+
+    Authentication Flow:
+
+        A user interacts with the UI (e.g., "Login with Google") handled by the Firebase Client SDK.
+
+        Firebase's onAuthStateChanged listener fires with a new user object.   
+
+The application requests the user.getIdToken() JWT from Firebase.
+
+Both the user object and the idToken are saved into the Zustand useAuthStore.  
+
+API Request Flow:
+
+    A React component calls a custom hook (e.g., useGetLeaderboard()) from TanStack Query.
+
+    The TanStack Query hook's queryFn calls a dedicated API service function (e.g., getLeaderboard()).
+
+    The service function executes an HTTP request using a central Axios instance.   
+
+This Axios instance is configured with a request interceptor.  
+
+The interceptor synchronously reads the token from the Zustand useAuthStore (using getState(), not a hook).  
+
+The interceptor injects the token into the request headers: Authorization: Bearer <token>.  
+
+        The authenticated request is sent to the protected backend endpoint.
+
+UI Component Philosophy
+
+The UI will be built using shadcn-ui. It is critical to understand that this is not a component library in the traditional sense (like Material-UI). It is a collection of composable, accessible, and unstyled components whose source code is copied directly into the project's codebase. This provides maximum control, customizability, and ownership over the components, all of which are built on TailwindCSS.  
+
+Technology Stack and Architectural Rationale
+
+To ensure the AI assistant has full context, the following table defines the complete technology stack and the specific role each library plays in this architecture.
+Technology	Category	Architectural Role	Source(s)
+Vite	Build Tool / Dev Server	Provides an extremely fast development server with Hot Module Replacement (HMR) and an optimized build process.	
+React (v18+)	UI Library	The core library for building the user interface declaratively.	
+TypeScript	Language	Enforces strict type safety throughout the application, catching errors at build time.	
+TailwindCSS	Styling	A utility-first CSS framework for rapidly building custom designs directly in the markup.	
+shadcn-ui	UI Components	A collection of copy-pasteable, accessible component primitives (e.g., Button, Table, Form) that form the base of the UI.	
+Zustand	State Management (Client)	Manages minimal, global, synchronous client state. Its primary role is storing the user's authentication status.	
+TanStack Query	State Management (Server)	Manages all asynchronous server state. Handles caching, re-fetching, mutation, and invalidation of API data.	
+Axios	API Client	The HTTP client for making requests. Its key feature, the interceptor, is essential for our auth flow.	
+Firebase Client SDK	Authentication	Manages all user-facing auth operations (login, signup, password reset) and generates the client-side ID Token (JWT).	
+react-router-dom	Routing	Handles all client-side routing, navigation, and the creation of protected route layouts.	
+react-hook-form	Form Management	A performant, flexible library for managing form state, validation, and submissions. The shadcn-ui form components are built for it.	
+Zod	Schema & Validation	A TypeScript-first schema declaration and validation library. Used with react-hook-form to validate form inputs.	
+@hey-api/openapi-ts	Type Generation	A dev tool that reads the backend's /openapi.json file and generates a fully-typed TypeScript client, ensuring frontend-backend type parity.
