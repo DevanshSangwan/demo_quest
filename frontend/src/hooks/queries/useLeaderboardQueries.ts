@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getLeaderboard, updateScore } from '@/api/services/leaderboardService';
-import { ScoreUpdate } from '@/api/generated/types.gen'; // Import generated type
+import type { ScoreUpdate } from '@/api/generated/types.gen'; // Import generated type
 
 // Centralize query keys
 export const LEADERBOARD_QUERY_KEY = ['leaderboard'];

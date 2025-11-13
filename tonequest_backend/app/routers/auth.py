@@ -23,6 +23,12 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
     If the token is invalid or expired, it raises an HTTPException.
     """
     try:
+        if credentials is None or not getattr(credentials, "credentials", None):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authorization credentials missing",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
         # Extract the token from the credentials
         token = credentials.credentials
         # Verify the token against the Firebase Auth API

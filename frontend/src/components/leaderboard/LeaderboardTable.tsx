@@ -1,7 +1,7 @@
-import { ColumnDef } from "@tanstack/react-table";
+import type { ColumnDef } from "@tanstack/react-table";
 import { useReactTable, getCoreRowModel, flexRender } from "@tanstack/react-table";
 import { useGetLeaderboard } from "@/hooks/queries/useLeaderboardQueries";
-import { LeaderboardEntry } from "@/api/generated/types.gen";
+import type { LeaderboardEntry } from "@/api/generated/types.gen";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -18,12 +18,16 @@ const columns: ColumnDef<LeaderboardEntry>[] = [
     header: "Rank",
   },
   {
-    accessorKey: "name",
-    header: "Name",
+    accessorKey: "user_id",
+    header: "User",
+    cell: ({ row }) => (
+      <span className="font-mono text-sm">{row.original.user_id}</span>
+    ),
   },
   {
     accessorKey: "score",
     header: "Score",
+    cell: ({ row }) => row.original.score.toFixed(2),
   },
 ];
 

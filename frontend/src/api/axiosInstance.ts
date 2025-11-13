@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosHeaders } from 'axios';
 import { useAuthStore } from '@/store/authStore';
 
 export const axiosInstance = axios.create({
@@ -13,10 +13,12 @@ axiosInstance.interceptors.request.use(
 
     // If the token exists, add it to the Authorization header
     if (token) {
-      if (!config.headers) {
-        config.headers = {};
-      }
-      config.headers.Authorization = `Bearer ${token}`;
+      const headers =
+        config.headers instanceof AxiosHeaders
+          ? config.headers
+          : new AxiosHeaders(config.headers ?? {});
+      headers.set('Authorization', `Bearer ${token}`);
+      config.headers = headers;
     }
     return config;
   },

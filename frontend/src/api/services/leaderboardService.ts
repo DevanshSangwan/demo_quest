@@ -1,6 +1,5 @@
 import { axiosInstance } from '@/api/axiosInstance';
-// Import your generated types. The names will depend on your backend's Pydantic models.
-import { LeaderboardEntry, ScoreUpdate } from '@/api/generated/types.gen'; 
+import type { LeaderboardEntry, ScoreUpdate } from '@/api/generated/types.gen';
 
 /**
  * Fetches the entire leaderboard.
@@ -11,7 +10,7 @@ export const getLeaderboard = async (): Promise<LeaderboardEntry[]> => {
 };
 
 /**
- * Creates a new entry in the leaderboard.
+ * Applies a manual score adjustment for an existing leaderboard entry.
  */
 export const updateScore = async (scoreUpdate: ScoreUpdate): Promise<void> => {
   await axiosInstance.post('/api/v1/leaderboard/update', scoreUpdate);
