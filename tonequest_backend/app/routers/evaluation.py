@@ -180,6 +180,7 @@ def _fallback_question() -> schemas.Question:
             "I led a cross-functional team that delivered a critical project ahead of schedule by coordinating stakeholders and removing blockers early.",
             "I launched a new onboarding program that reduced ramp-up time for new hires by 30%.",
         ],
+        is_last_question=True,
     )
 
 
@@ -216,6 +217,7 @@ def get_next_question(
         id=str(payload.get("id") or document.id),
         question_text=question_text,
         reference_answers=list(reference_answers),
+        is_last_question=False,  # Random question, can't determine if last
     )
 
 
@@ -269,18 +271,26 @@ def get_current_question(
     
     questions_with_ids.sort(key=lambda x: x[0])
     
-    for q_id, doc, data in questions_with_ids:
-        if q_id not in answered_ids:
-            fallback = _fallback_question()
-            return schemas.Question(
-                id=str(q_id),
-                question_text=data.get("question_text") or fallback.question_text,
-                reference_answers=list(data.get("answers") or fallback.reference_answers),
-            )
+    # Find all unanswered questions
+    unanswered = [q for q in questions_with_ids if q[0] not in answered_ids]
     
-    return schemas.QuestionStatus(
-        status="completed",
-        message="You've answered all the questions, congratulations!"
+    if not unanswered:
+        return schemas.QuestionStatus(
+            status="completed",
+            message="You've answered all the questions, congratulations!"
+        )
+    
+    # Get the first unanswered question
+    q_id, doc, data = unanswered[0]
+    fallback = _fallback_question()
+    # Check if this is the last unanswered question
+    is_last = len(unanswered) == 1
+    
+    return schemas.Question(
+        id=str(q_id),
+        question_text=data.get("question_text") or fallback.question_text,
+        reference_answers=list(data.get("answers") or fallback.reference_answers),
+        is_last_question=is_last,
     )
 
 

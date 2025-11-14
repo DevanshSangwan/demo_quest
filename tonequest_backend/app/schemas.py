@@ -35,6 +35,7 @@ class QuestionBase(BaseModel):
 class Question(QuestionBase):
     id: str
     reference_answers: List[str]
+    is_last_question: bool = False
     
     model_config = ConfigDict(from_attributes=True)
 
