@@ -1,11 +1,24 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { fetchNextQuestion, submitAnswer } from "@/api/services/evaluationService";
+import { fetchCurrentQuestion, submitAnswer } from "@/api/services/evaluationService";
+
+// Type definitions (inline to avoid runtime import issues)
+type QuestionPayload = {
+  id: string;
+  question_text: string;
+  reference_answers: string[];
+};
+
+type QuestionCompletedPayload = {
+  status: string;
+  message: string;
+};
 
 export const AnsweringPage = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [answerText, setAnswerText] = useState("");
   const [showFeedback, setShowFeedback] = useState(false);
   const [lastScore, setLastScore] = useState<number | null>(null);
@@ -13,8 +26,8 @@ export const AnsweringPage = () => {
   const [hasSubmitted, setHasSubmitted] = useState(false);
 
   const questionQuery = useQuery({
-    queryKey: ["evaluation", "question"],
-    queryFn: fetchNextQuestion,
+    queryKey: ["evaluation", "currentQuestion"],
+    queryFn: fetchCurrentQuestion,
   });
 
   const submitMutation = useMutation({
@@ -24,15 +37,17 @@ export const AnsweringPage = () => {
       setBestMatch(data.best_match_answer);
       setShowFeedback(true);
       setHasSubmitted(true);
+      queryClient.invalidateQueries({ queryKey: ["evaluation", "currentQuestion"] });
     },
   });
 
   const handleSubmit = () => {
-    if (!questionQuery.data || !answerText.trim()) {
+    const data = questionQuery.data;
+    if (!data || "status" in data || !answerText.trim()) {
       return;
     }
     submitMutation.mutate({
-      question_id: questionQuery.data.id,
+      question_id: data.id,
       answer_text: answerText.trim(),
     });
   };
@@ -43,10 +58,11 @@ export const AnsweringPage = () => {
     setLastScore(null);
     setBestMatch(null);
     setHasSubmitted(false);
-    questionQuery.refetch();
   };
 
-  const question = questionQuery.data;
+  const data = questionQuery.data;
+  const isCompleted = data && "status" in data;
+  const question = !isCompleted ? (data as QuestionPayload) : null;
 
   return (
     <div className="space-y-8">
@@ -69,17 +85,32 @@ export const AnsweringPage = () => {
           </div>
         )}
 
+        {isCompleted && (
+          <div className="space-y-4 text-center">
+            <h2 className="text-2xl font-semibold text-primary">
+              {(data as QuestionCompletedPayload).message}
+            </h2>
+            <Button
+              onClick={() => navigate("/")}
+              className="bg-blue-500 text-white hover:bg-blue-600"
+            >
+              Exit to Home
+            </Button>
+          </div>
+        )}
+
         {question && (
           <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
               <span>Question Number: {question.id}</span>
             </div>
-            <h2 className="text-xl font-semibold">{question.prompt_text}</h2>
+            <h2 className="text-xl font-semibold">{question.question_text}</h2>
             <textarea
               value={answerText}
               onChange={(event) => setAnswerText(event.target.value)}
               placeholder="Write your answer here..."
               className="min-h-[200px] w-full resize-y rounded-xl border border-border bg-background px-4 py-3 text-base shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
+              disabled={hasSubmitted}
             />
             <div className="flex flex-wrap items-center gap-4">
               <Button
@@ -89,31 +120,15 @@ export const AnsweringPage = () => {
               >
                 {submitMutation.isPending ? "Submitting..." : "Submit Answer"}
               </Button>
-              <Button
-                onClick={handleLoadAnotherQuestion}
-                disabled={!hasSubmitted}
-                className="bg-blue-500 text-white hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
-                type="button"
-              >
-                Try Another Question
-              </Button>
               {hasSubmitted && (
                 <Button
-                  onClick={() => setHasSubmitted(false)}
+                  onClick={handleLoadAnotherQuestion}
                   className="bg-blue-500 text-white hover:bg-blue-600"
                   type="button"
                 >
-                  Try Again
+                  Next Question
                 </Button>
               )}
-              <Button
-                onClick={() => navigate("/")}
-                disabled={submitMutation.isPending}
-                className="bg-blue-500 text-white hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
-                type="button"
-              >
-                Exit to Home
-              </Button>
             </div>
           </div>
         )}

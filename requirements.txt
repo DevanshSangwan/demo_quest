@@ -9,3 +9,5 @@ redis==7.0.0
 httpx==0.28.1
 firebase-admin==7.1.0
 cachetools>=5.0.0
+requests>=2.31.0
+google-cloud-firestore>=2.18.0

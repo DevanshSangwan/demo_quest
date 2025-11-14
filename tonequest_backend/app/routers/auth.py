@@ -103,7 +103,8 @@ def signup(user_data: UserSignup, db: Client = Depends(get_db)):
             "uid": user_record.uid,
             "email": user_data.email,
             "displayName": user_data.displayName or "",
-            "totalSubmissions": 0
+            "totalSubmissions": 0,
+            "answeredQuestionIds": []
         }
         
         user_ref = db.collection("users").document(user_record.uid)
@@ -173,8 +174,9 @@ def login(user_data: UserLogin, db: Client = Depends(get_db)):
                 detail="User profile not found. Please contact support."
             )
         
+        user_data = user_doc.to_dict() or {}
         return AuthResponse(
-            user=User(**user_doc.to_dict()),
+            user=User(**user_data),
             token=id_token,
             message="Login successful"
         )

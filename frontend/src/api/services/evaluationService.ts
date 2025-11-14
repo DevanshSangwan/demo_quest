@@ -2,10 +2,13 @@ import { axiosInstance } from '@/api/axiosInstance';
 
 export interface QuestionPayload {
   id: string;
-  prompt_text: string;
-  category: string;
-  difficulty: string;
+  question_text: string;
   reference_answers: string[];
+}
+
+export interface QuestionCompletedPayload {
+  status: string;
+  message: string;
 }
 
 export interface EvaluationResult {
@@ -17,10 +20,15 @@ export interface EvaluationResult {
     best_score: number;
     submission_count: number;
   };
-}
+};
 
 export const fetchNextQuestion = async (): Promise<QuestionPayload> => {
   const { data } = await axiosInstance.get<QuestionPayload>('/api/v1/questions/next');
+  return data;
+};
+
+export const fetchCurrentQuestion = async (): Promise<QuestionPayload | QuestionCompletedPayload> => {
+  const { data } = await axiosInstance.get('/api/v1/questions/current');
   return data;
 };
 

@@ -3,7 +3,7 @@ import os
 import random
 import threading
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from google.cloud import firestore
@@ -175,9 +175,7 @@ def _update_leaderboard(
 def _fallback_question() -> schemas.Question:
     return schemas.Question(
         id="sample-question",
-        prompt_text="Describe a professional accomplishment you are particularly proud of.",
-        category="General",
-        difficulty="Medium",
+        question_text="Describe a professional accomplishment you are particularly proud of.",
         reference_answers=[
             "I led a cross-functional team that delivered a critical project ahead of schedule by coordinating stakeholders and removing blockers early.",
             "I launched a new onboarding program that reduced ramp-up time for new hires by 30%.",
@@ -211,17 +209,78 @@ def get_next_question(
     payload = document.to_dict() or {}
     fallback_question = _fallback_question()
 
-    prompt_text = payload.get("prompt_text") or payload.get("prompt") or fallback_question.prompt_text
-    category = payload.get("category") or fallback_question.category
-    difficulty = payload.get("difficulty") or fallback_question.difficulty
-    reference_answers = payload.get("reference_answers") or payload.get("answers") or fallback_question.reference_answers
+    question_text = payload.get("question_text") or fallback_question.question_text
+    reference_answers = payload.get("answers") or fallback_question.reference_answers
 
     return schemas.Question(
         id=str(payload.get("id") or document.id),
-        prompt_text=prompt_text,
-        category=category,
-        difficulty=difficulty,
+        question_text=question_text,
         reference_answers=list(reference_answers),
+    )
+
+
+@router.get("/questions/current", response_model=Union[schemas.Question, schemas.QuestionStatus])
+def get_current_question(
+    current_user: dict = Depends(get_current_user),
+    db: Client = Depends(get_db),
+):
+    """
+    Return the next unanswered question for the user in sequential order.
+    Returns completion status if all questions are answered.
+    """
+    user_id = current_user.get("uid")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Unable to identify authenticated user",
+        )
+
+    user_ref = db.collection("users").document(user_id)
+    user_doc = user_ref.get()
+    
+    if not user_doc.exists:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+    
+    user_data = user_doc.to_dict() or {}
+    answered_ids = user_data.get("answeredQuestionIds", [])
+    
+    collection = db.collection(_QUESTIONS_COLLECTION)
+    
+    try:
+        all_docs = list(collection.stream())
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to load questions: {exc}",
+        ) from exc
+    
+    if not all_docs:
+        return _fallback_question()
+    
+    questions_with_ids = []
+    for doc in all_docs:
+        data = doc.to_dict() or {}
+        q_id = data.get("id")
+        if q_id is not None:
+            questions_with_ids.append((int(q_id), doc, data))
+    
+    questions_with_ids.sort(key=lambda x: x[0])
+    
+    for q_id, doc, data in questions_with_ids:
+        if q_id not in answered_ids:
+            fallback = _fallback_question()
+            return schemas.Question(
+                id=str(q_id),
+                question_text=data.get("question_text") or fallback.question_text,
+                reference_answers=list(data.get("answers") or fallback.reference_answers),
+            )
+    
+    return schemas.QuestionStatus(
+        status="completed",
+        message="You've answered all the questions, congratulations!"
     )
 
 
@@ -262,9 +321,16 @@ def evaluate_answer(
 
     leaderboard_data = _update_leaderboard(db, user_id, best_score)
 
-    # Update user's totalSubmissions count
+    # Update user's totalSubmissions count and track answered question
     user_ref = db.collection("users").document(user_id)
-    user_ref.update({"totalSubmissions": firestore.Increment(1)})
+    try:
+        question_id_int = int(data.question_id)
+        user_ref.update({
+            "totalSubmissions": firestore.Increment(1),
+            "answeredQuestionIds": firestore.ArrayUnion([question_id_int])
+        })
+    except (ValueError, TypeError):
+        user_ref.update({"totalSubmissions": firestore.Increment(1)})
 
     return {
         "submission_id": submission_id,

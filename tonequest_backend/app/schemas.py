@@ -24,20 +24,23 @@ class AuthResponse(BaseModel):
 class User(UserBase):
     uid: str
     totalSubmissions: int = 0
+    answeredQuestionIds: List[int] = []
     
     model_config = ConfigDict(from_attributes=True)
 
 # --- Question Schemas ---
 class QuestionBase(BaseModel):
-    prompt_text: str
-    category: str
-    difficulty: str
+    question_text: str
 
 class Question(QuestionBase):
     id: str
     reference_answers: List[str]
     
     model_config = ConfigDict(from_attributes=True)
+
+class QuestionStatus(BaseModel):
+    status: str
+    message: str
 
 # --- Submission Schemas ---
 class AnswerInput(BaseModel):
