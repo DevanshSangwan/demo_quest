@@ -37,11 +37,11 @@ export const LoginPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    if (!isLoading && user) {
-      navigate('/', { replace: true });
-    }
-  }, [isLoading, user, navigate]);
+  // useEffect(() => {
+  //   // if (!isLoading && user) {
+  //   //   navigate('/', { replace: true });
+  //   // }
+  // }, [isLoading, user, navigate]);
 
   const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -97,7 +97,7 @@ export const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div className="min-h-screen bg-linear-to-br from-slate-900 via-slate-800 to-slate-900">
       <div className="container mx-auto flex min-h-screen flex-col items-center justify-center px-4 py-16 text-white">
         <div className="mb-8 flex gap-4 rounded-full bg-white/10 p-1 backdrop-blur-sm">
           <Button
@@ -142,7 +142,7 @@ export const LoginPage = () => {
             </div>
           )}
 
-          {mode === 'login' ? (
+          {mode === 'login' && (
             <Form {...loginForm}>
               <form onSubmit={loginForm.handleSubmit(handleLogin)} className="mt-8 space-y-6">
                 <FormField
@@ -191,7 +191,8 @@ export const LoginPage = () => {
                 </Button>
               </form>
             </Form>
-          ) : (
+          ) }
+          { mode=='signup' && (
             <Form {...signupForm}>
               <form onSubmit={signupForm.handleSubmit(handleSignup)} className="mt-8 space-y-6">
                 <FormField
@@ -224,7 +225,7 @@ export const LoginPage = () => {
                           placeholder="Your name"
                           className="bg-white/5 text-white placeholder:text-slate-400"
                           {...field}
-                          value={field.value || ''}
+                          // value={field.value || ''}
                         />
                       </FormControl>
                       <FormMessage />
