@@ -9,6 +9,7 @@ type QuestionPayload = {
   id: string;
   question_text: string;
   reference_answers: string[];
+  is_last_question: boolean;
 };
 
 type QuestionCompletedPayload = {
@@ -37,7 +38,6 @@ export const AnsweringPage = () => {
       setBestMatch(data.best_match_answer);
       setShowFeedback(true);
       setHasSubmitted(true);
-      queryClient.invalidateQueries({ queryKey: ["evaluation", "currentQuestion"] });
     },
   });
 
@@ -58,6 +58,7 @@ export const AnsweringPage = () => {
     setLastScore(null);
     setBestMatch(null);
     setHasSubmitted(false);
+    queryClient.invalidateQueries({ queryKey: ["evaluation", "currentQuestion"] });
   };
 
   const data = questionQuery.data;
@@ -120,15 +121,24 @@ export const AnsweringPage = () => {
               >
                 {submitMutation.isPending ? "Submitting..." : "Submit Answer"}
               </Button>
-              {hasSubmitted && (
-                <Button
-                  onClick={handleLoadAnotherQuestion}
-                  className="bg-blue-500 text-white hover:bg-blue-600"
-                  type="button"
-                >
-                  Next Question
-                </Button>
-              )}
+              {hasSubmitted &&
+                (question.is_last_question ? (
+                  <Button
+                    onClick={() => navigate("/")}
+                    className="bg-green-500 text-white hover:bg-green-600"
+                    type="button"
+                  >
+                    Finish Session
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={handleLoadAnotherQuestion}
+                    className="bg-blue-500 text-white hover:bg-blue-600"
+                    type="button"
+                  >
+                    Next Question
+                  </Button>
+                ))}
             </div>
           </div>
         )}
