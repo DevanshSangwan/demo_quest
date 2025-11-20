@@ -92,7 +92,7 @@ export const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div className="min-h-screen bg-linear-to-br from-slate-900 via-slate-800 to-slate-900">
       <div className="container mx-auto flex min-h-screen flex-col items-center justify-center px-4 py-16 text-white">
         <div className="mb-8 flex gap-4 rounded-full bg-white/10 p-1 backdrop-blur-sm">
           <Button
