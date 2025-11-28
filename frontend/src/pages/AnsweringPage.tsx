@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import ReactMarkdown from "react-markdown";
 import { Button } from "@/components/ui/button";
 import { fetchCurrentQuestion, submitAnswer } from "@/api/services/evaluationService";
 
@@ -203,7 +204,9 @@ export const AnsweringPage = () => {
           {toneFeedback && (
             <div>
               <p className="text-sm font-bold">Tone Feedback</p>
-              <p className="mt-1 text-sm text-foreground">{toneFeedback}</p>
+              <div className="mt-1 text-sm text-foreground prose prose-sm max-w-none prose-strong:font-bold prose-strong:text-foreground">
+                <ReactMarkdown>{toneFeedback}</ReactMarkdown>
+              </div>
             </div>
           )}
 
@@ -212,7 +215,11 @@ export const AnsweringPage = () => {
               <p className="text-sm font-bold">Grammar Issues</p>
               <ul className="mt-1 list-disc list-inside space-y-1">
                 {grammarIssues.map((issue, idx) => (
-                  <li key={idx} className="text-sm text-foreground">{issue}</li>
+                  <li key={idx} className="text-sm text-foreground">
+                    <span className="prose prose-sm inline prose-strong:font-bold prose-strong:text-foreground">
+                      <ReactMarkdown components={{ p: 'span' }}>{issue}</ReactMarkdown>
+                    </span>
+                  </li>
                 ))}
               </ul>
             </div>
@@ -221,7 +228,9 @@ export const AnsweringPage = () => {
           {suggestions && (
             <div>
               <p className="text-sm font-bold">Suggestions</p>
-              <p className="mt-1 text-sm text-foreground">{suggestions}</p>
+              <div className="mt-1 text-sm text-foreground prose prose-sm max-w-none prose-strong:font-bold prose-strong:text-foreground">
+                <ReactMarkdown>{suggestions}</ReactMarkdown>
+              </div>
             </div>
           )}
         </section>
