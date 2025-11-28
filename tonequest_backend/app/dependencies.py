@@ -2,7 +2,14 @@ import os
 import threading
 from typing import Optional
 
+from dotenv import load_dotenv
+
+# Load .env from the app directory (same directory as this file)
+env_path = os.path.join(os.path.dirname(__file__), '.env')
+load_dotenv(dotenv_path=env_path)
+
 import redis
+from redis import exceptions as redis_exceptions
 from google.cloud.firestore import Client
 
 from app.firebase_config import db as firestore_client
@@ -36,7 +43,7 @@ def _init_redis_client() -> redis.Redis:
         try:
             client.ping()
             return client
-        except redis.exceptions.ConnectionError:
+        except redis_exceptions.ConnectionError:
             # Intentionally fall back to fakeredis below
             pass
 

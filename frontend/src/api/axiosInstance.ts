@@ -2,7 +2,7 @@ import axios, { AxiosHeaders } from 'axios';
 import { useAuthStore } from '@/store/authStore';
 
 export const axiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL, // e.g., http://localhost:8000
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000', // Default to localhost:8000 if not set
 });
 
 // Request interceptor

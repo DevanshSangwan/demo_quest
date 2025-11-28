@@ -3,7 +3,7 @@ import { axiosInstance } from '@/api/axiosInstance';
 export interface QuestionPayload {
   id: string;
   question_text: string;
-  reference_answers: string[];
+  is_last_question: boolean;
 }
 
 export interface QuestionCompletedPayload {
@@ -13,8 +13,10 @@ export interface QuestionCompletedPayload {
 
 export interface EvaluationResult {
   submission_id: string;
-  similarity_score: number;
-  best_match_answer: string;
+  score: number;
+  tone_feedback: string;
+  grammar_issues: string[];
+  suggestions: string;
   leaderboard: {
     average_score: number;
     best_score: number;

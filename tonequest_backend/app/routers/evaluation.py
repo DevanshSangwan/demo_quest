@@ -1,37 +1,214 @@
 import json
+import logging
 import os
 import random
-import threading
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Union
 
+import requests
 from fastapi import APIRouter, Depends, HTTPException, status
 from google.cloud import firestore
 from google.cloud.firestore import Client
-from sentence_transformers import SentenceTransformer, util
 
 from app import schemas
 from app.dependencies import get_db, get_redis
 from app.routers.auth import get_current_user
 
-router = APIRouter(tags=["Evaluation"])
+logger = logging.getLogger(__name__)
 
-_model_lock = threading.Lock()
-_model: Optional[SentenceTransformer] = None
+router = APIRouter(tags=["Evaluation"])
 
 _QUESTIONS_COLLECTION = os.getenv("QUESTIONS_COLLECTION", "QnA")
 _SUBMISSIONS_COLLECTION = os.getenv("SUBMISSIONS_COLLECTION", "submissions")
 _LEADERBOARD_COLLECTION = os.getenv("LEADERBOARD_COLLECTION", "leaderboard")
+_DEFAULT_GEMINI_RESULT = {
+    "score": 0,
+    "toneFeedback": "Evaluation failed",
+    "grammarIssues": [],
+    "suggestions": "Unable to evaluate response at this time.",
+}
 
 
-def _get_embedding_model() -> SentenceTransformer:
-    global _model
+def evaluate_with_gemini(
+    prompt_text: str,
+    user_answer: str,
+    use_mock: bool = False,
+    mock_result: Optional[dict] = None,
+) -> dict:
+    """
+    Call Gemini with the provided prompt and answer, returning the parsed JSON payload.
+    """
+    if use_mock:
+        if mock_result is not None:
+            return mock_result
+        return {
+            "score": 75,
+            "toneFeedback": "Balanced tone with room for more confidence.",
+            "grammarIssues": ["Consider varying sentence length."],
+            "suggestions": "Add concrete examples to strengthen the response.",
+        }
 
-    if _model is None:
-        with _model_lock:
-            if _model is None:
-                _model = SentenceTransformer("all-MiniLM-L6-v2")
-    return _model
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="GEMINI_API_KEY environment variable is not configured.",
+        )
+
+    instructions = (
+        "You are an AI writing evaluator. Analyze the provided prompt and user answer. "
+        "You MUST return ONLY a valid JSON object with no markdown formatting, no code blocks, and no extra text. "
+        "The JSON object must have exactly these fields:\n"
+        '- "score": a number between 0 and 100\n'
+        '- "toneFeedback": a string\n'
+        '- "grammarIssues": an array of strings\n'
+        '- "suggestions": a string\n\n'
+        "Tasks:\n"
+        "1. Score the writing from 0-100.\n"
+        "2. Provide tone feedback.\n"
+        "3. List grammar issues.\n"
+        "4. Offer improvement suggestions.\n\n"
+        "Return ONLY the JSON object, nothing else. Example format:\n"
+        '{"score": 75, "toneFeedback": "Professional and clear", "grammarIssues": [], "suggestions": "Good work"}'
+    )
+
+    request_payload = {
+        "contents": [
+            {
+                "parts": [
+                    {
+                        "text": (
+                            f"{instructions}\n\nPrompt:\n{prompt_text}\n\n"
+                            f"User Answer:\n{user_answer}"
+                        )
+                    }
+                ]
+            }
+        ]
+    }
+
+    try:
+        # Use v1beta endpoint with API key as query parameter (most reliable format)
+        # Alternative: Use header "x-goog-api-key" if query param doesn't work
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+        response = requests.post(
+            url,
+            headers={
+                "Content-Type": "application/json",
+            },
+            json=request_payload,
+            timeout=20,
+        )
+        response.raise_for_status()
+    except requests.RequestException as exc:
+        # Extract detailed error information for debugging
+        error_detail = str(exc)
+        if hasattr(exc, 'response') and exc.response is not None:
+            try:
+                error_body = exc.response.json()
+                # Include the actual error message from Gemini API
+                error_message = error_body.get('error', {}).get('message', 'Unknown error')
+                error_detail = f"{exc} - Gemini API Error: {error_message} - Full response: {error_body}"
+            except (ValueError, AttributeError):
+                error_text = exc.response.text[:500] if hasattr(exc.response, 'text') else "No response text"
+                error_detail = f"{exc} - Status: {exc.response.status_code}, Response: {error_text}"
+        
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Failed to reach Gemini API: {error_detail}",
+        ) from exc
+
+    try:
+        response_payload = response.json()
+        logger.debug(f"Gemini API response payload: {json.dumps(response_payload, indent=2)}")
+    except ValueError as e:
+        logger.error(f"Failed to parse Gemini response as JSON. Status: {response.status_code}, Text: {response.text[:500]}")
+        return dict(_DEFAULT_GEMINI_RESULT)
+
+    candidates = response_payload.get("candidates") if isinstance(response_payload, dict) else None
+    if not candidates:
+        logger.error(f"Gemini response missing 'candidates' field. Response: {json.dumps(response_payload, indent=2)}")
+        return dict(_DEFAULT_GEMINI_RESULT)
+
+    parts = candidates[0].get("content", {}).get("parts", [])
+    text_segments = [part.get("text", "") for part in parts if part.get("text")]
+    if not text_segments:
+        logger.error(f"Gemini response missing text content. Candidates: {json.dumps(candidates, indent=2)}")
+        return dict(_DEFAULT_GEMINI_RESULT)
+
+    raw_text = " ".join(text_segments).strip()
+    logger.debug(f"Gemini returned text (first 500 chars): {raw_text[:500]}")
+    
+    # Try to extract JSON from markdown code blocks (common LLM behavior)
+    json_text = raw_text
+    if "```json" in raw_text:
+        # Extract JSON from ```json ... ``` block
+        start = raw_text.find("```json") + 7
+        end = raw_text.find("```", start)
+        if end != -1:
+            json_text = raw_text[start:end].strip()
+            logger.debug("Extracted JSON from markdown code block")
+    elif "```" in raw_text:
+        # Extract JSON from ``` ... ``` block
+        start = raw_text.find("```") + 3
+        end = raw_text.find("```", start)
+        if end != -1:
+            json_text = raw_text[start:end].strip()
+            logger.debug("Extracted JSON from code block")
+    
+    # Try to find JSON object boundaries if text has extra content
+    if not json_text.strip().startswith("{"):
+        # Look for first { and last }
+        start_brace = json_text.find("{")
+        end_brace = json_text.rfind("}")
+        if start_brace != -1 and end_brace != -1 and end_brace > start_brace:
+            json_text = json_text[start_brace:end_brace + 1]
+            logger.debug("Extracted JSON object from text")
+    
+    try:
+        parsed = json.loads(json_text)
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse Gemini text as JSON. Error: {e}")
+        logger.error(f"Attempted to parse: {json_text[:1000]}")
+        logger.error(f"Original text: {raw_text[:1000]}")
+        return dict(_DEFAULT_GEMINI_RESULT)
+
+    if not isinstance(parsed, dict):
+        logger.error(f"Parsed JSON is not a dict. Type: {type(parsed)}, Value: {parsed}")
+        return dict(_DEFAULT_GEMINI_RESULT)
+
+    score = parsed.get("score")
+    try:
+        score = float(score) if score is not None else None
+    except (TypeError, ValueError):
+        score = None
+
+    grammar_issues = parsed.get("grammarIssues")
+    if isinstance(grammar_issues, str):
+        grammar_issues = [grammar_issues]
+    elif not isinstance(grammar_issues, list):
+        grammar_issues = []
+
+    result = {
+        "score": score,
+        "toneFeedback": parsed.get("toneFeedback", ""),
+        "grammarIssues": grammar_issues,
+        "suggestions": parsed.get("suggestions", ""),
+    }
+    return result
+
+
+def evaluate_answer_with_model(model_name: str, question: str, answer: str) -> dict:
+    """
+    Dispatch evaluation to the model-specific implementation.
+    """
+    if model_name.lower() == "gemini":
+        return evaluate_with_gemini(question, answer)
+
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail=f"Unsupported evaluation model: {model_name}",
+    )
 
 
 def _load_question(
@@ -88,26 +265,6 @@ def _load_question(
 
     redis_client.set(cache_key, json.dumps(question), ex=300)
     return question
-
-
-def _compute_similarity(
-    answer_text: str,
-    reference_answers: List[str],
-) -> Tuple[float, str]:
-    if not reference_answers:
-        return 0.0, ""
-
-    model = _get_embedding_model()
-    sentences = [answer_text, *reference_answers]
-    embeddings = model.encode(
-        sentences, convert_to_tensor=True, normalize_embeddings=True
-    )
-    sims = util.cos_sim(embeddings[0], embeddings[1:]).squeeze(0)
-
-    best_idx = int(sims.argmax())
-    best_score = float(sims[best_idx])
-    best_match = reference_answers[best_idx]
-    return best_score, best_match
 
 
 def _persist_submission(
@@ -176,10 +333,6 @@ def _fallback_question() -> schemas.Question:
     return schemas.Question(
         id="sample-question",
         question_text="Describe a professional accomplishment you are particularly proud of.",
-        reference_answers=[
-            "I led a cross-functional team that delivered a critical project ahead of schedule by coordinating stakeholders and removing blockers early.",
-            "I launched a new onboarding program that reduced ramp-up time for new hires by 30%.",
-        ],
         is_last_question=True,
     )
 
@@ -211,12 +364,10 @@ def get_next_question(
     fallback_question = _fallback_question()
 
     question_text = payload.get("question_text") or fallback_question.question_text
-    reference_answers = payload.get("answers") or fallback_question.reference_answers
 
     return schemas.Question(
         id=str(payload.get("id") or document.id),
         question_text=question_text,
-        reference_answers=list(reference_answers),
         is_last_question=False,  # Random question, can't determine if last
     )
 
@@ -289,7 +440,6 @@ def get_current_question(
     return schemas.Question(
         id=str(q_id),
         question_text=data.get("question_text") or fallback.question_text,
-        reference_answers=list(data.get("answers") or fallback.reference_answers),
         is_last_question=is_last,
     )
 
@@ -313,23 +463,34 @@ def evaluate_answer(
         )
 
     question = _load_question(data.question_id, db, redis_client)
-    reference_answers = question.get("answers") or []
+    prompt_text = question.get("question_text") or ""
 
-    best_score, best_match_answer = _compute_similarity(
-        data.answer_text, reference_answers
-    )
+    gemini_result = evaluate_answer_with_model("gemini", prompt_text, data.answer_text)
+    gemini_score = gemini_result.get("score")
+    try:
+        numeric_score = float(gemini_score) if gemini_score is not None else 0.0
+    except (TypeError, ValueError):
+        numeric_score = 0.0
 
     submission_payload = {
         "user_id": user_id,
         "question_id": data.question_id,
         "submitted_answer": data.answer_text,
-        "similarity_score": best_score,
-        "best_match_answer": best_match_answer,
+        "score": numeric_score,
+        "tone_feedback": gemini_result.get("toneFeedback"),
+        "grammar_issues": gemini_result.get("grammarIssues"),
+        "suggestions": gemini_result.get("suggestions"),
+        "llm_feedback": {
+            "score": gemini_result.get("score"),
+            "toneFeedback": gemini_result.get("toneFeedback"),
+            "grammarIssues": gemini_result.get("grammarIssues"),
+            "suggestions": gemini_result.get("suggestions"),
+        },
         "submitted_at": datetime.utcnow(),
     }
     submission_id = _persist_submission(db, submission_payload)
 
-    leaderboard_data = _update_leaderboard(db, user_id, best_score)
+    leaderboard_data = _update_leaderboard(db, user_id, numeric_score)
 
     # Update user's totalSubmissions count and track answered question
     user_ref = db.collection("users").document(user_id)
@@ -343,9 +504,13 @@ def evaluate_answer(
         user_ref.update({"totalSubmissions": firestore.Increment(1)})
 
     return {
+        "question_id": data.question_id,
+        "user_who_submitted": user_id,
+        "score": numeric_score,
+        "tone_feedback": gemini_result.get("toneFeedback"),
+        "grammar_issues": gemini_result.get("grammarIssues"),
+        "suggestions": gemini_result.get("suggestions"),
         "submission_id": submission_id,
-        "similarity_score": best_score,
-        "best_match_answer": best_match_answer,
         "leaderboard": {
             "average_score": leaderboard_data["average_score"],
             "best_score": leaderboard_data["best_score"],

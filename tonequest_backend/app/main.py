@@ -3,6 +3,11 @@ from fastapi.responses import FileResponse
 from app.routers import evaluation, leaderboard, auth
 from fastapi.middleware.cors import CORSMiddleware # Will be configured later
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file in the app directory
+env_path = os.path.join(os.path.dirname(__file__), '.env')
+load_dotenv(dotenv_path=env_path)
 
 app = FastAPI(
     title="ToneQuest API",
