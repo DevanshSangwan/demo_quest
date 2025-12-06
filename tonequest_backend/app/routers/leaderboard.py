@@ -1,3 +1,5 @@
+import logging
+import traceback
 from typing import Iterable, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -7,6 +9,10 @@ from google.cloud.firestore import Client
 from app import schemas
 from app.dependencies import get_db
 from app.routers.auth import get_current_user
+
+logger = logging.getLogger(__name__)
+
+_RANK_HISTORY_COLLECTION = "rank_history"
 
 router = APIRouter(tags=["Leaderboard"])
 
@@ -65,6 +71,67 @@ def read_leaderboard(
         ) from exc
 
     return _build_leaderboard_entries(documents, db)
+
+
+@router.get("/leaderboard/rank-history", response_model=List[schemas.RankHistoryEntry])
+def get_user_rank_history(
+    current_user: dict = Depends(get_current_user),
+    db: Client = Depends(get_db),
+):
+    """
+    Return rank history for the current user from daily snapshots.
+    """
+    user_id = current_user.get("uid")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Unable to identify authenticated user",
+        )
+
+    try:
+        query = (
+            db.collection(_RANK_HISTORY_COLLECTION)
+            .where("user_id", "==", user_id)
+            .order_by("date")
+        )
+        documents = list(query.stream())
+        
+        logger.info(f"Found {len(documents)} rank history entries for user {user_id}")
+        
+        history = []
+        for doc in documents:
+            try:
+                data = doc.to_dict() or {}
+                logger.debug(f"Processing rank history document {doc.id}: {data}")
+                
+                date_value = data.get("date", "")
+                rank_value = data.get("rank", 0)
+                
+                # Ensure date is a string
+                if not isinstance(date_value, str):
+                    date_value = str(date_value)
+                
+                # Ensure rank is an integer
+                rank_int = int(rank_value)
+                
+                history.append(schemas.RankHistoryEntry(
+                    date=date_value,
+                    rank=rank_int,
+                ))
+            except Exception as doc_exc:
+                logger.error(f"Error processing rank history document {doc.id}: {doc_exc}")
+                logger.error(traceback.format_exc())
+                continue
+        
+        return history
+        
+    except Exception as exc:
+        logger.error(f"Failed to fetch rank history: {exc}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch rank history: {str(exc)}",
+        ) from exc
 
 
 @router.get(

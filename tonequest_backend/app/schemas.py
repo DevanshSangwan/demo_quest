@@ -77,3 +77,13 @@ class LeaderboardEntry(BaseModel):
 class RelativeLeaderboardResponse(BaseModel):
     rank: int
     entries: List[LeaderboardEntry]
+
+# --- Analytics Schemas ---
+class ScoreHistoryEntry(BaseModel):
+    question_id: int
+    score: float
+    submitted_at: str
+
+class RankHistoryEntry(BaseModel):
+    date: str
+    rank: int

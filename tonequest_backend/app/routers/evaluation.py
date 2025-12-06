@@ -444,6 +444,75 @@ def get_current_question(
     )
 
 
+@router.get("/user/score-history", response_model=List[schemas.ScoreHistoryEntry])
+def get_user_score_history(
+    current_user: dict = Depends(get_current_user),
+    db: Client = Depends(get_db),
+):
+    """
+    Return all submissions for the current user ordered chronologically.
+    """
+    import traceback
+    
+    user_id = current_user.get("uid")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Unable to identify authenticated user",
+        )
+
+    try:
+        query = (
+            db.collection(_SUBMISSIONS_COLLECTION)
+            .where("user_id", "==", user_id)
+            .order_by("submitted_at")
+        )
+        documents = list(query.stream())
+        
+        logger.info(f"Found {len(documents)} submissions for user {user_id}")
+        
+        history = []
+        for doc in documents:
+            try:
+                data = doc.to_dict() or {}
+                logger.debug(f"Processing document {doc.id}: {data}")
+                
+                question_id = int(data.get("question_id", 0))
+                score = float(data.get("score", 0.0))
+                submitted_at = data.get("submitted_at")
+                
+                # Handle Firestore Timestamp serialization
+                if submitted_at:
+                    if hasattr(submitted_at, 'isoformat'):
+                        submitted_at_str = submitted_at.isoformat()
+                    elif hasattr(submitted_at, 'seconds'):
+                        # Firestore Timestamp object
+                        from datetime import datetime as dt, timezone
+                        submitted_at_str = dt.fromtimestamp(submitted_at.seconds, tz=timezone.utc).isoformat()
+                    else:
+                        submitted_at_str = str(submitted_at)
+                    
+                    history.append(schemas.ScoreHistoryEntry(
+                        question_id=question_id,
+                        score=score,
+                        submitted_at=submitted_at_str,
+                    ))
+            except Exception as doc_exc:
+                logger.error(f"Error processing document {doc.id}: {doc_exc}")
+                logger.error(traceback.format_exc())
+                continue
+        
+        return history
+        
+    except Exception as exc:
+        logger.error(f"Failed to fetch score history: {exc}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch score history: {str(exc)}",
+        ) from exc
+
+
 @router.post("/evaluate_answer")
 def evaluate_answer(
     data: schemas.AnswerInput,

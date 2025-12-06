@@ -1,6 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchCurrentUser } from "@/api/services/userService";
 import { useRelativeLeaderboard } from "@/hooks/queries/useLeaderboardQueries";
+import { useScoreHistory, useRankHistory } from "@/hooks/queries/useUserQueries";
+import { ScoreHistoryChart } from "@/components/charts/ScoreHistoryChart";
+import { RankHistoryChart } from "@/components/charts/RankHistoryChart";
 
 export const UserInfoPage = () => {
   const { data: profile, isLoading, isError } = useQuery({
@@ -13,6 +16,9 @@ export const UserInfoPage = () => {
     isLoading: isRankLoading,
     isError: isRankError,
   } = useRelativeLeaderboard();
+
+  const { data: scoreHistory, isLoading: isScoreLoading } = useScoreHistory();
+  const { data: rankHistory, isLoading: isRankHistoryLoading } = useRankHistory();
 
   return (
     <div className="space-y-8">
@@ -78,6 +84,18 @@ export const UserInfoPage = () => {
               The leaderboard page highlights the five writers ahead of you and four writers just
               behind—keep submitting polished responses to climb higher!
             </p>
+          </div>
+        )}
+      </section>
+
+      <section className="space-y-4">
+        <h2 className="text-2xl font-semibold">Your Progress Over Time</h2>
+        {isScoreLoading || isRankHistoryLoading ? (
+          <p className="text-sm text-muted-foreground">Loading your progress data...</p>
+        ) : (
+          <div className="grid gap-6 md:grid-cols-2">
+            <ScoreHistoryChart data={scoreHistory || []} />
+            <RankHistoryChart data={rankHistory || []} />
           </div>
         )}
       </section>

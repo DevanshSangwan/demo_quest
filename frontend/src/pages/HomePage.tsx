@@ -1,6 +1,9 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/store/authStore";
+import { useScoreHistory, useRankHistory } from "@/hooks/queries/useUserQueries";
+import { ScoreHistoryChart } from "@/components/charts/ScoreHistoryChart";
+import { RankHistoryChart } from "@/components/charts/RankHistoryChart";
 
 const pages = [
   {
@@ -28,6 +31,8 @@ const pages = [
 
 export const HomePage = () => {
   const { user } = useAuthStore();
+  const { data: scoreHistory, isLoading: isScoreLoading } = useScoreHistory();
+  const { data: rankHistory, isLoading: isRankHistoryLoading } = useRankHistory();
 
   return (
     <div className="space-y-12">
@@ -63,16 +68,16 @@ export const HomePage = () => {
         </div>
       </section>
 
-      <section className="rounded-3xl bg-gradient-to-br from-primary/90 via-primary to-primary/80 p-10 text-white shadow-xl">
-        <h2 className="text-3xl font-bold tracking-tight md:text-4xl">
-          Welcome back to ToneQuest
-        </h2>
-        <p className="mt-4 max-w-3xl text-lg text-white/90">
-          Hone your professional writing by answering scenario-based prompts, learn from detailed
-          feedback, and climb the leaderboard as you improve. Use the shortcuts below to jump
-          straight into today&apos;s goals.
-        </p>
-      </section>
+      {user && !isScoreLoading && !isRankHistoryLoading && 
+       ((scoreHistory && scoreHistory.length > 0) || (rankHistory && rankHistory.length > 0)) && (
+        <section className="space-y-4">
+          <h2 className="text-2xl font-semibold">Track Your Progress</h2>
+          <div className="grid gap-6 md:grid-cols-2">
+            <ScoreHistoryChart data={scoreHistory || []} />
+            <RankHistoryChart data={rankHistory || []} />
+          </div>
+        </section>
+      )}
 
       <section className="grid gap-6 md:grid-cols-3">
         {pages.map((page) => (
@@ -89,13 +94,15 @@ export const HomePage = () => {
         ))}
       </section>
 
-      <section className="rounded-2xl border border-dashed border-border bg-background p-6">
-        <h3 className="text-lg font-semibold">Not sure where to begin?</h3>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Start with a fresh prompt on the answering page, then review how you stack up on the
-          leaderboard and keep your profile up-to-date.
-        </p>
-      </section>
+      {user && (
+        <section className="rounded-2xl border border-dashed border-border bg-background p-6">
+          <h3 className="text-lg font-semibold">Not sure where to begin?</h3>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Start with a fresh prompt on the answering page, then review how you stack up on the
+            leaderboard and keep your profile up-to-date.
+          </p>
+        </section>
+      )}
     </div>
   );
 };
