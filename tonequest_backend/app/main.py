@@ -16,12 +16,8 @@ app = FastAPI(
 )
 
 # Configure CORS
-origins = [
-    "http://localhost:5173",  # Vite default dev server
-    "http://localhost:3000",  # Alternative dev port
-    "http://127.0.0.1:5173",
-    "http://127.0.0.1:3000",
-]
+origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",")
+origins = [origin.strip() for origin in origins]
 
 app.add_middleware(
     CORSMiddleware,

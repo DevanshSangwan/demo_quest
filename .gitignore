@@ -10,3 +10,12 @@ ServiceAccountKey.json
 
 # --- Optional ---
 .cursorignore
+
+# --- Build Artifacts ---
+frontend/dist/
+frontend/node_modules/
+
+# --- Environment Files ---
+.env
+.env.local
+.env.*.local
